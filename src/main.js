@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { createEgyptianCity } from "./world/egyptian-city.js";
 import { loadMicrobus } from "./vehicles/microbus.js";
 import { createControls } from "./controls.js";
-
+import { createTraffic } from "./world/traffic.js";
 // إعداد الصفحة
 document.body.innerHTML = "";
 
@@ -63,6 +63,9 @@ scene.add(sun);
 
 // العالم
 const city = createEgyptianCity(scene);
+
+// حركة المرور
+const traffic = createTraffic(scene);
 
 // حالة القيادة
 let playerZ = 0;
@@ -271,7 +274,10 @@ function animate() {
     }
 
     // تحديث العالم
-    city.userData.update(delta, playerZ, night);
+city.userData.update(delta, playerZ, night);
+
+// تحديث حركة المرور
+traffic.update(delta, playerZ, speed);
 
     // الكاميرا تتبع الميكروباص
     camera.position.x = THREE.MathUtils.damp(
