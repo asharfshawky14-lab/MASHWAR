@@ -1,42 +1,28 @@
 
 import * as THREE from "three";
 
-// =====================================================
-// MASHWAR - EGYPTIAN ENDLESS HIGHWAY
-// طريق سفر مصري مزدوج - القاهرة إلى أسيوط
-// =====================================================
-
-const CONFIG = {
-    roadWidth: 18,
-    laneWidth: 3.6,
-    medianWidth: 1.4,
-    shoulderWidth: 1.5,
-    chunkLength: 180,
-    chunkCount: 9,
-    roadY: 0.04
-};
-
-const COLORS = {
+const C = {
     asphalt: 0x303438,
-    asphaltEdge: 0x55585a,
-    sand: 0xc5ad80,
-    soil: 0x987b50,
-    grass: 0x63814a,
-    concrete: 0x999999,
-    median: 0xb7b2a5,
-    white: 0xf4f0df,
-    yellow: 0xf2c94c,
-    building: 0xc9b69a,
-    building2: 0xd5c7ae,
-    window: 0x506875,
-    darkWindow: 0x263b48
+    shoulder: 0x77736b,
+    concrete: 0xaaa69d,
+    white: 0xf5f2e9,
+    yellow: 0xf4c84c,
+    sand: 0xc9b28a,
+    soil: 0x92764d,
+    grass: 0x587b42,
+    building: 0xcbb99e,
+    building2: 0xd8c8ae,
+    glass: 0x496b7b,
+    dark: 0x202a30,
+    metal: 0x747d82,
+    red: 0xe62c26,
+    amber: 0xffa51c,
+    green: 0x20b45a
 };
 
-// =====================================================
-// أدوات مساعدة
-// =====================================================
+const M = {};
 
-function material(color, roughness = 0.9, extra = {}) {
+function makeMat(color, roughness = 0.85, extra = {}) {
     return new THREE.MeshStandardMaterial({
         color,
         roughness,
@@ -44,38 +30,29 @@ function material(color, roughness = 0.9, extra = {}) {
     });
 }
 
-const mats = {
-    asphalt: material(COLORS.asphalt),
-    asphaltEdge: material(COLORS.asphaltEdge),
-    white: material(COLORS.white),
-    yellow: material(COLORS.yellow),
-    concrete: material(COLORS.concrete),
-    median: material(COLORS.median),
-    sand: material(COLORS.sand),
-    soil: material(COLORS.soil),
-    grass: material(COLORS.grass),
-    building: material(COLORS.building),
-    building2: material(COLORS.building2),
-    window: material(COLORS.window, 0.25, {
-        metalness: 0.15
-    }),
-    darkWindow: material(COLORS.darkWindow, 0.25),
-    black: material(0x202326),
-    metal: material(0x777d80, 0.45, {
-        metalness: 0.7
-    }),
-    red: material(0xe52b25, 0.4, {
-        emissive: 0x550000
-    }),
-    orange: material(0xffa21a, 0.4, {
-        emissive: 0x442000
-    }),
-    green: material(0x16b957, 0.4, {
-        emissive: 0x003c16
-    })
-};
+for (const [key, color] of Object.entries(C)) {
+    M[key] = makeMat(color);
+}
 
-function box(parent, x, y, z, w, h, d, mat) {
+M.glass.roughness = 0.25;
+M.metal.metalness = 0.65;
+M.metal.roughness = 0.4;
+
+const LENGTH = 180;
+const CHUNK_COUNT = 9;
+const ROAD_HALF = 10.8;
+const ROAD_Y = 0.08;
+
+function rng(seed) {
+    let n = seed >>> 0;
+
+    return () => {
+        n = (n * 1664525 + 1013904223) >>> 0;
+        return n / 4294967296;
+    };
+}
+
+function addBox(parent, x, y, z, w, h, d, mat) {
     const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, d),
         mat
@@ -86,25 +63,23 @@ function box(parent, x, y, z, w, h, d, mat) {
     mesh.receiveShadow = true;
 
     parent.add(mesh);
-
     return mesh;
 }
 
-function cylinder(
+function addCylinder(
     parent,
     x,
     y,
     z,
-    radiusTop,
-    radiusBottom,
+    radius,
     height,
     mat,
     segments = 12
 ) {
     const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(
-            radiusTop,
-            radiusBottom,
+            radius,
+            radius * 1.25,
             height,
             segments
         ),
@@ -116,893 +91,939 @@ function cylinder(
     mesh.receiveShadow = true;
 
     parent.add(mesh);
-
     return mesh;
 }
 
-function seededRandom(seed) {
-    let value = seed >>> 0;
+function addTextBoard(parent, x, y, z, width, height, label, color = "#17613f") {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 160;
 
-    return function () {
-        value = (value * 1664525 + 1013904223) >>> 0;
+    const ctx = canvas.getContext("2d");
 
-        return value / 4294967296;
-    };
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 512, 160);
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 9;
+    ctx.strokeRect(7, 7, 498, 146);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 55px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+    ctx.fillText(label, 256, 80, 470);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const boardMat = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide
+    });
+
+    const board = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, height),
+        boardMat
+    );
+
+    board.position.set(x, y, z);
+    parent.add(board);
+
+    return board;
 }
 
-// =====================================================
-// الأرض والطريق
-// =====================================================
+// -----------------------------------------------------
+// الطريق المزدوج
+// -----------------------------------------------------
 
-function createRoad(chunk, random) {
-    const length = CONFIG.chunkLength;
-
-    // الأرض الطبيعية
-    box(
-        chunk,
-        0,
-        -0.5,
-        0,
-        180,
-        1,
-        length,
-        mats.sand
+function buildRoad(chunk) {
+    addBox(
+        chunk, 0, -0.55, 0,
+        180, 0.8, LENGTH,
+        M.sand
     );
 
-    // الطريق الرئيسي
-    box(
-        chunk,
-        0,
-        0,
-        0,
-        CONFIG.roadWidth,
-        0.12,
-        length,
-        mats.asphalt
-    );
-
-    // أكتاف الطريق
+    // الاتجاهان
     for (const side of [-1, 1]) {
-        box(
+        addBox(
             chunk,
-            side * 9.8,
+            side * 5.35,
             0,
             0,
-            1.6,
-            0.1,
-            length,
-            mats.asphaltEdge
+            10.7,
+            0.16,
+            LENGTH,
+            M.asphalt
         );
 
-        // الخط الأبيض الجانبي
-        box(
+        // كتف الطريق الخارجي
+        addBox(
             chunk,
-            side * 8.9,
+            side * 11.45,
+            0,
+            0,
+            1.5,
+            0.12,
+            LENGTH,
+            M.shoulder
+        );
+
+        // الخط الأبيض الخارجي
+        addBox(
+            chunk,
+            side * 10.75,
+            ROAD_Y,
+            0,
             0.13,
-            0,
-            0.12,
             0.025,
-            length,
-            mats.white
+            LENGTH,
+            M.white
         );
-    }
 
-    // الفاصل الوسطي
-    box(
-        chunk,
-        0,
-        0.12,
-        0,
-        CONFIG.medianWidth,
-        0.3,
-        length,
-        mats.median
-    );
-
-    // حواجز الفاصل
-    box(
-        chunk,
-        -0.72,
-        0.42,
-        0,
-        0.12,
-        0.32,
-        length,
-        mats.concrete
-    );
-
-    box(
-        chunk,
-        0.72,
-        0.42,
-        0,
-        0.12,
-        0.32,
-        length,
-        mats.concrete
-    );
-
-    // خطوط الحارات المتقطعة
-    for (let z = -length / 2 + 5; z < length / 2; z += 12) {
-        for (const side of [-1, 1]) {
-            const center = side * 4.3;
-
-            box(
-                chunk,
-                center,
-                0.14,
-                z,
-                0.12,
-                0.025,
-                5,
-                mats.white
-            );
-        }
-    }
-
-    // عواكس الطريق على الفاصل
-    for (let z = -length / 2 + 8; z < length / 2; z += 18) {
-        box(
-            chunk,
-            0,
-            0.3,
-            z,
-            0.18,
-            0.12,
-            0.5,
-            mats.yellow
-        );
-    }
-}
-
-// =====================================================
-// البيوت المصرية
-// =====================================================
-
-function createHouse(parent, x, z, random, style = 0) {
-    const width = 9 + random() * 6;
-    const depth = 9 + random() * 5;
-    const floors = 2 + Math.floor(random() * 3);
-    const floorHeight = 3.2;
-
-    const height = floors * floorHeight;
-
-    const houseMat = style === 1
-        ? mats.building2
-        : mats.building;
-
-    // جسم البيت
-    box(
-        parent,
-        x,
-        0,
-        z,
-        width,
-        height,
-        depth,
-        houseMat
-    );
-
-    // السطح
-    box(
-        parent,
-        x,
-        height,
-        z,
-        width + 0.4,
-        0.22,
-        depth + 0.4,
-        mats.concrete
-    );
-
-    // حائط السطح
-    for (const side of [-1, 1]) {
-        box(
-            parent,
-            x + side * (width / 2 - 0.12),
-            height + 0.2,
-            z,
-            0.22,
-            0.8,
-            depth,
-            mats.building2
-        );
-    }
-
-    // النوافذ
-    const columns = Math.max(
-        2,
-        Math.floor(width / 2.4)
-    );
-
-    for (let floor = 0; floor < floors; floor++) {
-        for (let col = 0; col < columns; col++) {
-            const windowX =
-                x - width / 2 + 1.4 + col * 2.3;
-
-            const windowY =
-                floor * floorHeight + 1.15;
-
-            // إطار النافذة
-            box(
-                parent,
-                windowX,
-                windowY,
-                z + depth / 2 + 0.08,
-                1.05,
-                1.25,
-                0.12,
-                mats.white
-            );
-
-            // الزجاج
-            box(
-                parent,
-                windowX,
-                windowY + 0.08,
-                z + depth / 2 + 0.16,
-                0.82,
-                0.95,
-                0.05,
-                mats.window
-            );
-
-            // تقسيم النافذة
-            box(
-                parent,
-                windowX,
-                windowY + 0.08,
-                z + depth / 2 + 0.2,
-                0.04,
-                0.95,
-                0.04,
-                mats.white
-            );
-
-            // شرفة صغيرة
-            if (random() > 0.45) {
-                box(
-                    parent,
-                    windowX,
-                    windowY - 0.55,
-                    z + depth / 2 + 0.55,
-                    1.45,
-                    0.1,
-                    0.9,
-                    mats.concrete
-                );
-
-                box(
-                    parent,
-                    windowX,
-                    windowY - 0.18,
-                    z + depth / 2 + 0.95,
-                    1.4,
-                    0.55,
-                    0.06,
-                    mats.metal
+        // فواصل الحارات
+        for (const laneX of [side * 1.8, side * 5.35]) {
+            for (let z = -LENGTH / 2 + 5; z < LENGTH / 2; z += 12) {
+                addBox(
+                    chunk,
+                    laneX,
+                    ROAD_Y,
+                    z,
+                    0.11,
+                    0.025,
+                    5,
+                    M.white
                 );
             }
         }
     }
 
-    // باب البيت
-    box(
-        parent,
-        x,
+    // الفاصل الوسطي
+    addBox(
+        chunk,
         0,
-        z + depth / 2 + 0.12,
-        1.2,
-        2.2,
-        0.2,
-        mats.darkWindow
+        0.12,
+        0,
+        1.7,
+        0.45,
+        LENGTH,
+        M.concrete
     );
 
-    // تكييفات
-    if (floors > 1) {
-        for (let i = 0; i < floors - 1; i++) {
-            box(
-                parent,
-                x + width / 2 + 0.2,
-                i * floorHeight + 1.3,
-                z,
-                0.55,
-                0.5,
-                0.8,
-                mats.white
-            );
-        }
+    // عواكس الفاصل
+    for (let z = -LENGTH / 2 + 8; z < LENGTH / 2; z += 16) {
+        addBox(
+            chunk,
+            0,
+            0.59,
+            z,
+            0.2,
+            0.09,
+            0.45,
+            M.yellow
+        );
     }
 
-    // خزان المياه على السطح
-    cylinder(
+    // حواف الفاصل
+    for (const side of [-1, 1]) {
+        addBox(
+            chunk,
+            side * 0.85,
+            0.58,
+            0,
+            0.12,
+            0.45,
+            LENGTH,
+            M.concrete
+        );
+    }
+}
+
+// -----------------------------------------------------
+// واجهة مبنى تواجه الطريق
+// -----------------------------------------------------
+
+function createFacadeWindow(parent, side, x, y, z) {
+    const faceX = x - side * 0.08;
+
+    addBox(
         parent,
-        x + width * 0.25,
-        height + 0.25,
+        faceX,
+        y,
         z,
-        0.8,
-        0.8,
-        1.4,
-        mats.metal,
-        16
+        0.16,
+        1.25,
+        1.15,
+        M.white
     );
 
-    // ماسورة على الواجهة
-    cylinder(
+    addBox(
         parent,
-        x - width / 2 - 0.15,
-        0,
-        z + depth / 2 + 0.2,
-        0.08,
-        0.08,
-        height,
-        mats.metal,
-        8
+        faceX - side * 0.1,
+        y + 0.09,
+        z,
+        0.07,
+        0.98,
+        0.88,
+        M.glass
+    );
+
+    addBox(
+        parent,
+        faceX - side * 0.15,
+        y + 0.09,
+        z,
+        0.035,
+        0.98,
+        0.045,
+        M.white
+    );
+
+    addBox(
+        parent,
+        faceX - side * 0.15,
+        y + 0.09,
+        z,
+        0.035,
+        0.045,
+        0.88,
+        M.white
     );
 }
 
-// =====================================================
-// المحلات المصرية
-// =====================================================
+function createHouse(parent, side, z, random, village = false) {
+    const depth = 8 + random() * 4;
+    const width = 11 + random() * 6;
+    const floors = village
+        ? 1 + Math.floor(random() * 2)
+        : 2 + Math.floor(random() * 3);
 
-function createShop(parent, x, z, random) {
-    const width = 8;
-    const height = 4.2;
-    const depth = 7;
+    const height = floors * 3.15;
+    const x = side * (18 + depth / 2);
 
-    box(
+    const bodyMat = random() > 0.5
+        ? M.building
+        : M.building2;
+
+    addBox(
         parent,
         x,
         0,
         z,
-        width,
-        height,
         depth,
-        mats.building2
+        height,
+        width,
+        bodyMat
     );
 
-    // واجهة المحل
-    box(
+    // سطح البيت
+    addBox(
         parent,
         x,
-        0.2,
-        z + depth / 2 + 0.08,
-        width - 0.7,
-        2.7,
+        height,
+        z,
+        depth + 0.35,
+        0.22,
+        width + 0.35,
+        M.concrete
+    );
+
+    // سور السطح
+    addBox(
+        parent,
+        x,
+        height + 0.22,
+        z - width / 2 + 0.1,
+        depth,
+        0.7,
         0.18,
-        mats.darkWindow
+        M.building2
     );
 
-    // باب زجاجي
-    box(
+    addBox(
         parent,
-        x - 2.3,
-        0.15,
-        z + depth / 2 + 0.2,
-        1.3,
-        2.5,
-        0.12,
-        mats.window
-    );
-
-    // يافطة المحل
-    const sign = new THREE.Mesh(
-        new THREE.BoxGeometry(width, 0.9, 0.3),
-        material(0x22516a)
-    );
-
-    sign.position.set(
         x,
-        3.45,
-        z + depth / 2 + 0.25
+        height + 0.22,
+        z + width / 2 - 0.1,
+        depth,
+        0.7,
+        0.18,
+        M.building2
     );
 
-    parent.add(sign);
+    // النوافذ على واجهة الطريق
+    const columns = Math.max(2, Math.floor(width / 2.5));
 
-    // كتابة عربية على اليافطة
-    const canvas = document.createElement("canvas");
+    for (let floor = 0; floor < floors; floor++) {
+        for (let col = 0; col < columns; col++) {
+            const windowZ =
+                z - width / 2 + 1.5 + col * 2.5;
 
-    canvas.width = 512;
-    canvas.height = 128;
+            const windowY = floor * 3.15 + 1.05;
 
-    const ctx = canvas.getContext("2d");
+            createFacadeWindow(
+                parent,
+                side,
+                x,
+                windowY,
+                windowZ
+            );
 
-    ctx.fillStyle = "#174b66";
-    ctx.fillRect(0, 0, 512, 128);
+            // بلكونة
+            if (random() > 0.58) {
+                const balconyX = x - side * 0.65;
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 58px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+                addBox(
+                    parent,
+                    balconyX,
+                    windowY - 0.55,
+                    windowZ,
+                    1.05,
+                    0.12,
+                    1.55,
+                    M.concrete
+                );
+
+                addBox(
+                    parent,
+                    balconyX - side * 0.5,
+                    windowY - 0.15,
+                    windowZ,
+                    0.08,
+                    0.65,
+                    1.5,
+                    M.metal
+                );
+            }
+        }
+    }
+
+    // باب خارجي
+    addBox(
+        parent,
+        x - side * 0.1,
+        0,
+        z + width * 0.25,
+        0.18,
+        2.25,
+        1.2,
+        M.dark
+    );
+
+    // ماسورة صرف
+    addBox(
+        parent,
+        x - side * (depth / 2 + 0.12),
+        0,
+        z - width / 2 + 0.25,
+        0.12,
+        height,
+        0.12,
+        M.metal
+    );
+
+    // خزان مياه
+    addCylinder(
+        parent,
+        x,
+        height + 0.25,
+        z - width * 0.25,
+        0.7,
+        1.35,
+        M.metal,
+        16
+    );
+
+    // تكييفات
+    for (let i = 1; i < floors; i++) {
+        addBox(
+            parent,
+            x - side * (depth / 2 + 0.22),
+            i * 3.15 + 0.8,
+            z + width * 0.28,
+            0.45,
+            0.5,
+            0.8,
+            M.white
+        );
+    }
+}
+
+// -----------------------------------------------------
+// المحلات
+// -----------------------------------------------------
+
+function createShop(parent, side, z, random) {
+    const depth = 7;
+    const width = 9;
+    const x = side * (18 + depth / 2);
+
+    addBox(
+        parent,
+        x,
+        0,
+        z,
+        depth,
+        4.1,
+        width,
+        M.building2
+    );
+
+    // واجهة زجاجية
+    addBox(
+        parent,
+        x - side * (depth / 2 + 0.06),
+        0.2,
+        z,
+        0.12,
+        2.65,
+        width - 0.8,
+        M.glass
+    );
+
+    // باب المحل
+    addBox(
+        parent,
+        x - side * (depth / 2 + 0.15),
+        0.15,
+        z + width * 0.28,
+        0.12,
+        2.5,
+        1.3,
+        M.dark
+    );
+
+    // مظلة
+    addBox(
+        parent,
+        x - side * (depth / 2 + 0.7),
+        2.8,
+        z,
+        1.35,
+        0.14,
+        width + 0.5,
+        M.red
+    );
 
     const names = [
         "بقالة",
         "ماركت",
         "مطعم",
         "قطع غيار",
-        "كهرباء"
+        "كهرباء",
+        "مخبوزات"
     ];
 
-    ctx.fillText(
-        names[Math.floor(random() * names.length)],
-        256,
-        64
+    const label = names[
+        Math.floor(random() * names.length)
+    ];
+
+    const sign = new THREE.Group();
+    parent.add(sign);
+
+    addTextBoard(
+        sign,
+        0,
+        0,
+        0,
+        width - 0.4,
+        0.9,
+        label,
+        "#174b66"
     );
 
-    const texture = new THREE.CanvasTexture(canvas);
-
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(width - 0.3, 0.8),
-        new THREE.MeshBasicMaterial({
-            map: texture
-        })
-    );
+    const board = sign.children[0];
 
     board.position.set(
-        x,
-        3.45,
-        z + depth / 2 + 0.42
+        x - side * (depth / 2 + 0.18),
+        3.5,
+        z
     );
 
-    parent.add(board);
-
-    // مظلة المحل
-    box(
-        parent,
-        x,
-        2.9,
-        z + depth / 2 + 0.65,
-        width + 0.4,
-        0.15,
-        1.4,
-        material(0x496f87)
-    );
+    board.rotation.y = side > 0
+        ? -Math.PI / 2
+        : Math.PI / 2;
 }
 
-// =====================================================
-// أعمدة الإنارة
-// =====================================================
+// -----------------------------------------------------
+// أشجار ونخيل
+// -----------------------------------------------------
 
-function createStreetLight(parent, x, z) {
-    const poleHeight = 9;
+function createPalm(parent, x, z, random) {
+    const height = 5 + random() * 2.5;
 
-    cylinder(
+    addCylinder(
         parent,
         x,
         0,
         z,
-        0.1,
-        0.2,
-        poleHeight,
-        mats.metal,
+        0.23,
+        height,
+        makeMat(0x775236),
+        9
+    );
+
+    const leafMat = makeMat(0x47763c);
+
+    for (let i = 0; i < 9; i++) {
+        const angle = i * Math.PI * 2 / 9;
+
+        const leaf = new THREE.Mesh(
+            new THREE.BoxGeometry(0.45, 0.12, 4),
+            leafMat
+        );
+
+        leaf.position.set(
+            x + Math.sin(angle) * 1.2,
+            height + 0.2,
+            z + Math.cos(angle) * 1.2
+        );
+
+        leaf.rotation.y = angle;
+        leaf.rotation.x = -0.18;
+
+        parent.add(leaf);
+    }
+}
+
+function createTree(parent, x, z, random) {
+    addCylinder(
+        parent,
+        x,
+        0,
+        z,
+        0.16,
+        3.2,
+        makeMat(0x6b4b2b),
+        8
+    );
+
+    const crown = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 10, 8),
+        makeMat(0x47743a)
+    );
+
+    crown.position.set(x, 4.3, z);
+    crown.scale.set(1, 0.85, 1);
+
+    parent.add(crown);
+}
+
+// -----------------------------------------------------
+// المزارع والترع
+// -----------------------------------------------------
+
+function createFarm(parent, side, z, random) {
+    const x = side * (24 + random() * 10);
+
+    addBox(
+        parent,
+        x,
+        0,
+        z,
+        28,
+        0.07,
+        42,
+        M.grass
+    );
+
+    for (let row = 0; row < 8; row++) {
+        addBox(
+            parent,
+            x - 12 + row * 3.4,
+            0.08,
+            z,
+            0.12,
+            0.05,
+            37,
+            M.soil
+        );
+    }
+
+    for (let i = 0; i < 3; i++) {
+        createPalm(
+            parent,
+            x + side * (random() * 4),
+            z - 14 + i * 14,
+            random
+        );
+    }
+
+    // ترعة
+    addBox(
+        parent,
+        side * 17,
+        0.03,
+        z,
+        1.5,
+        0.06,
+        38,
+        makeMat(0x438ca5, 0.2, {
+            metalness: 0.1
+        })
+    );
+}
+
+// -----------------------------------------------------
+// صحراء وتلال
+// -----------------------------------------------------
+
+function createDesert(parent, side, z, random) {
+    for (let i = 0; i < 6; i++) {
+        const hill = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 12, 8),
+            M.sand
+        );
+
+        const sx = 7 + random() * 13;
+        const sy = 2 + random() * 4;
+        const sz = 9 + random() * 18;
+
+        hill.scale.set(sx, sy, sz);
+
+        hill.position.set(
+            side * (25 + random() * 35),
+            sy * 0.45 - 0.15,
+            z + random() * 110 - 55
+        );
+
+        hill.receiveShadow = true;
+        parent.add(hill);
+    }
+}
+
+// -----------------------------------------------------
+// أعمدة الإنارة الفعلية
+// -----------------------------------------------------
+
+function createStreetLight(parent, side, z) {
+    const x = side * 12.7;
+    const inward = -side;
+
+    addCylinder(
+        parent,
+        x,
+        0,
+        z,
+        0.12,
+        8.5,
+        M.metal,
         10
     );
 
-    // ذراع الكشاف
-    const arm = box(
-        parent,
-        x + (x > 0 ? -0.9 : 0.9),
-        poleHeight - 0.1,
-        z,
-        1.9,
-        0.13,
-        0.13,
-        mats.metal
+    const arm = new THREE.Mesh(
+        new THREE.BoxGeometry(2.2, 0.13, 0.13),
+        M.metal
     );
 
-    // رأس الكشاف
+    arm.position.set(
+        x + inward * 0.95,
+        8.45,
+        z
+    );
+
+    parent.add(arm);
+
     const lamp = new THREE.Mesh(
-        new THREE.BoxGeometry(1.1, 0.25, 0.55),
-        material(0x252c30)
+        new THREE.BoxGeometry(1.05, 0.25, 0.6),
+        makeMat(0x30383d)
     );
 
     lamp.position.set(
-        x + (x > 0 ? -1.6 : 1.6),
-        poleHeight,
+        x + inward * 1.8,
+        8.35,
         z
     );
 
     parent.add(lamp);
 
     const bulb = new THREE.Mesh(
-        new THREE.BoxGeometry(0.75, 0.08, 0.32),
+        new THREE.BoxGeometry(0.72, 0.06, 0.38),
         new THREE.MeshBasicMaterial({
-            color: 0xffe4a1
+            color: 0xffe8b0
         })
     );
 
     bulb.position.set(
         lamp.position.x,
-        poleHeight - 0.16,
+        8.19,
         z
     );
 
     parent.add(bulb);
+
+    const light = new THREE.PointLight(
+        0xffd99a,
+        0,
+        25,
+        2
+    );
+
+    light.position.set(
+        lamp.position.x,
+        8.05,
+        z
+    );
+
+    parent.add(light);
+
+    parent.userData.streetLights ??= [];
+    parent.userData.streetLights.push(light);
 }
 
-// =====================================================
-// إشارات المرور
-// =====================================================
+// -----------------------------------------------------
+// إشارات مرور على طرق الخدمة
+// -----------------------------------------------------
 
-function createTrafficLight(parent, x, z) {
-    const signal = new THREE.Group();
+function createTrafficLight(parent, side, z) {
+    const group = new THREE.Group();
 
-    signal.position.set(x, 0, z);
+    group.position.set(
+        side * 12.8,
+        0,
+        z
+    );
 
-    parent.add(signal);
+    parent.add(group);
 
-    // العمود
-    cylinder(
-        signal,
+    addCylinder(
+        group,
         0,
         0,
         0,
         0.09,
-        0.14,
-        5.5,
-        mats.metal
+        5.6,
+        M.metal,
+        10
     );
 
-    // صندوق الإشارة
-    box(
-        signal,
+    addBox(
+        group,
         0,
         5.5,
         0,
-        0.75,
+        0.72,
         1.9,
         0.65,
-        mats.black
+        M.dark
     );
 
-    const lights = [];
+    const bulbs = [];
 
-    const lightMaterials = [
-        mats.red,
-        mats.orange,
-        mats.green
+    const colors = [
+        C.red,
+        C.amber,
+        C.green
     ];
 
     for (let i = 0; i < 3; i++) {
-        const lamp = new THREE.Mesh(
+        const bulb = new THREE.Mesh(
             new THREE.CircleGeometry(0.23, 24),
-            lightMaterials[i]
+            new THREE.MeshBasicMaterial({
+                color: colors[i]
+            })
         );
 
-        lamp.position.set(
+        bulb.position.set(
             0,
-            6.1 - i * 0.58,
+            6.05 - i * 0.57,
             0.34
         );
 
-        signal.add(lamp);
-
-        lights.push(lamp);
+        group.add(bulb);
+        bulbs.push(bulb);
     }
 
-    signal.userData.lights = lights;
+    const lights = colors.map((color, index) => {
+        const light = new THREE.PointLight(
+            color,
+            0,
+            3
+        );
 
-    signal.userData.phase = Math.random() * 20;
+        light.position.set(
+            0,
+            6.05 - index * 0.57,
+            0.65
+        );
 
-    return signal;
+        group.add(light);
+        return light;
+    });
+
+    group.userData.bulbs = bulbs;
+    group.userData.lights = lights;
+    group.userData.timer = Math.random() * 18;
+
+    return group;
 }
 
-// =====================================================
-// الأشجار والنخيل
-// =====================================================
+// -----------------------------------------------------
+// لوحات الطرق
+// -----------------------------------------------------
 
-function createPalm(parent, x, z, random) {
-    const height = 5 + random() * 3;
+function createRoadSign(parent, side, z, label) {
+    const x = side * 13.7;
 
-    cylinder(
+    addCylinder(
         parent,
         x,
         0,
         z,
-        0.22,
-        0.35,
-        height,
-        material(0x785334),
+        0.09,
+        3.8,
+        M.metal,
         8
     );
 
-    const crown = new THREE.Group();
+    const board = addTextBoard(
+        parent,
+        x - side * 0.1,
+        3.9,
+        z,
+        5.5,
+        1.8,
+        label,
+        "#12603b"
+    );
 
-    crown.position.set(x, height, z);
-
-    parent.add(crown);
-
-    const leafMat = material(0x477b36);
-
-    for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI * 2 * i) / 8;
-
-        const leaf = new THREE.Mesh(
-            new THREE.BoxGeometry(0.45, 0.12, 3.8),
-            leafMat
-        );
-
-        leaf.position.set(
-            Math.sin(angle) * 1.3,
-            0.15,
-            Math.cos(angle) * 1.3
-        );
-
-        leaf.rotation.y = angle;
-        leaf.rotation.x = -0.15;
-
-        leaf.castShadow = true;
-
-        crown.add(leaf);
-    }
+    board.rotation.y = side > 0
+        ? -Math.PI / 2
+        : Math.PI / 2;
 }
 
-function createTree(parent, x, z, random) {
-    const height = 3 + random() * 2;
+// -----------------------------------------------------
+// حواجز الطريق
+// -----------------------------------------------------
 
-    cylinder(
+function createGuardRail(parent, side) {
+    const x = side * 12.3;
+
+    addBox(
         parent,
         x,
+        0.75,
         0,
-        z,
-        0.14,
-        0.2,
-        height,
-        material(0x694a2d),
-        8
+        0.16,
+        0.17,
+        LENGTH,
+        M.metal
     );
 
-    const top = new THREE.Mesh(
-        new THREE.SphereGeometry(
-            1.3 + random(),
-            10,
-            8
-        ),
-        material(0x47743a)
-    );
-
-    top.position.set(x, height + 1, z);
-
-    top.castShadow = true;
-
-    parent.add(top);
-}
-
-// =====================================================
-// منطقة زراعية
-// =====================================================
-
-function createFarm(parent, side, z, random) {
-    const x = side * (20 + random() * 13);
-
-    box(
-        parent,
-        x,
-        0,
-        z,
-        22,
-        0.08,
-        45,
-        mats.grass
-    );
-
-    // خطوط الزراعة
-    for (let i = 0; i < 7; i++) {
-        const rowX = x - 9 + i * 3;
-
-        box(
-            parent,
-            rowX,
-            0.1,
-            z,
-            0.13,
-            0.06,
-            40,
-            mats.soil
-        );
-    }
-
-    // أشجار النخيل
-    for (let i = 0; i < 3; i++) {
-        createPalm(
-            parent,
-            x + side * (random() * 5),
-            z - 15 + i * 14,
-            random
-        );
-    }
-
-    // مجرى مياه زراعي
-    if (random() > 0.4) {
-        box(
-            parent,
-            side * 17,
-            0.04,
-            z,
-            1.8,
-            0.08,
-            40,
-            material(0x428ba0, 0.2)
-        );
-    }
-}
-
-// =====================================================
-// منطقة صحراوية
-// =====================================================
-
-function createDesert(parent, side, z, random) {
-    for (let i = 0; i < 5; i++) {
-        const x = side * (18 + random() * 30);
-
-        const hill = new THREE.Mesh(
-            new THREE.SphereGeometry(
-                1,
-                12,
-                8
-            ),
-            mats.sand
-        );
-
-        const sx = 7 + random() * 15;
-        const sy = 2 + random() * 5;
-        const sz = 8 + random() * 18;
-
-        hill.scale.set(sx, sy, sz);
-
-        hill.position.set(
-            x,
-            sy * 0.55 - 0.2,
-            z + random() * 65 - 32
-        );
-
-        hill.receiveShadow = true;
-
-        parent.add(hill);
-    }
-}
-
-// =====================================================
-// حواجز الطريق واللوحات
-// =====================================================
-
-function createGuardRail(parent, side, z) {
-    const x = side * 11.5;
-
-    // أعمدة الحاجز
-    for (let i = -80; i < 90; i += 5) {
-        cylinder(
+    for (let z = -LENGTH / 2 + 5; z < LENGTH / 2; z += 6) {
+        addCylinder(
             parent,
             x,
             0,
-            z + i,
-            0.06,
-            0.06,
-            0.8,
-            mats.metal,
+            z,
+            0.055,
+            0.85,
+            M.metal,
             8
         );
     }
-
-    // جسم الحاجز
-    box(
-        parent,
-        x,
-        0.65,
-        z,
-        0.16,
-        0.16,
-        170,
-        mats.metal
-    );
 }
 
-function createRoadSign(parent, x, z, text, random) {
-    cylinder(
-        parent,
-        x,
-        0,
-        z,
-        0.07,
-        0.09,
-        3.5,
-        mats.metal,
-        8
-    );
+// -----------------------------------------------------
+// تنظيف موارد قطعة الطريق
+// -----------------------------------------------------
 
-    const canvas = document.createElement("canvas");
+function disposeChunk(chunk) {
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
 
-    canvas.width = 512;
-    canvas.height = 180;
+    chunk.traverse(object => {
+        if (!object.isMesh) return;
 
-    const ctx = canvas.getContext("2d");
+        if (object.geometry) {
+            geometries.add(object.geometry);
+        }
 
-    ctx.fillStyle = "#12613c";
-    ctx.fillRect(0, 0, 512, 180);
+        const list = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
 
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 8;
+        for (const mat of list) {
+            if (!mat) continue;
 
-    ctx.strokeRect(6, 6, 500, 168);
+            materials.add(mat);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold 48px Arial";
+            for (const value of Object.values(mat)) {
+                if (value && value.isTexture) {
+                    textures.add(value);
+                }
+            }
+        }
+    });
 
-    ctx.fillText(text, 256, 90);
+    geometries.forEach(g => g.dispose());
 
-    const texture = new THREE.CanvasTexture(canvas);
+    materials.forEach(mat => {
+        if (!Object.values(M).includes(mat)) {
+            mat.dispose();
+        }
+    });
 
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    const sign = new THREE.Mesh(
-        new THREE.PlaneGeometry(5.5, 2),
-        new THREE.MeshBasicMaterial({
-            map: texture,
-            side: THREE.DoubleSide
-        })
-    );
-
-    sign.position.set(x, 3.7, z);
-
-    parent.add(sign);
+    textures.forEach(texture => texture.dispose());
 }
 
-// =====================================================
-// بناء قطعة الطريق
-// =====================================================
+// -----------------------------------------------------
+// إنشاء قطعة طريق
+// -----------------------------------------------------
 
 function createChunk(index) {
     const chunk = new THREE.Group();
+    const random = rng(index + 72531);
 
-    const random = seededRandom(index + 9182);
+    chunk.name = `MASHWAR_CHUNK_${index}`;
 
-    createRoad(chunk, random);
+    buildRoad(chunk);
 
-    // تحديد طبيعة المنطقة
     let zone;
 
-    if (index < 2) {
+    // مناطق تتغير تدريجيًا على امتداد الرحلة
+    const phase = ((index % 16) + 16) % 16;
+
+    if (phase < 4) {
         zone = "urban";
-    } else if (index < 6) {
+    } else if (phase < 8) {
         zone = "farm";
-    } else if (index < 9) {
+    } else if (phase < 12) {
         zone = "desert";
     } else {
         zone = "upper";
     }
 
-    // عناصر جانبية
-    for (const side of [-1, 1]) {
-        createGuardRail(chunk, side, 0);
+    chunk.userData.zone = zone;
+    chunk.userData.signals = [];
+    chunk.userData.streetLights = [];
 
-        // الإنارة
-        for (let z = -75; z <= 75; z += 50) {
+    for (const side of [-1, 1]) {
+        createGuardRail(chunk, side);
+
+        for (let z = -70; z <= 70; z += 45) {
             createStreetLight(
                 chunk,
-                side * 12.5,
+                side,
                 z
             );
         }
 
         if (zone === "urban") {
-            for (let z = -65; z <= 65; z += 32) {
-                const x = side * (22 + random() * 5);
-
+            for (let z = -68; z <= 68; z += 28) {
                 if (random() > 0.35) {
                     createHouse(
                         chunk,
-                        x,
+                        side,
                         z,
                         random
                     );
                 } else {
                     createShop(
                         chunk,
-                        x,
+                        side,
                         z,
                         random
                     );
@@ -1011,7 +1032,7 @@ function createChunk(index) {
         }
 
         if (zone === "farm") {
-            for (let z = -65; z <= 65; z += 55) {
+            for (let z = -55; z <= 55; z += 55) {
                 createFarm(
                     chunk,
                     side,
@@ -1020,13 +1041,13 @@ function createChunk(index) {
                 );
             }
 
-            if (random() > 0.35) {
+            if (random() > 0.3) {
                 createHouse(
                     chunk,
-                    side * 28,
-                    random() * 80 - 40,
+                    side,
+                    random() * 90 - 45,
                     random,
-                    1
+                    true
                 );
             }
         }
@@ -1039,10 +1060,10 @@ function createChunk(index) {
                 random
             );
 
-            if (random() > 0.7) {
+            if (random() > 0.6) {
                 createPalm(
                     chunk,
-                    side * 20,
+                    side * 24,
                     random() * 100 - 50,
                     random
                 );
@@ -1057,160 +1078,136 @@ function createChunk(index) {
                 random
             );
 
-            for (let z = -65; z <= 65; z += 55) {
-                if (random() > 0.35) {
+            for (let z = -55; z <= 55; z += 55) {
+                if (random() > 0.3) {
                     createHouse(
                         chunk,
-                        side * (23 + random() * 7),
+                        side,
                         z,
                         random,
-                        1
+                        true
                     );
                 }
             }
         }
     }
 
-    // إشارة مرور عند بعض التقاطعات
-    if (index % 3 === 0) {
-        const signal1 = createTrafficLight(
-            chunk,
-            -10.5,
-            -55
+    // إشارات عند مداخل طرق خدمة جانبية
+    if (index % 4 === 0) {
+        chunk.userData.signals.push(
+            createTrafficLight(chunk, -1, -60),
+            createTrafficLight(chunk, 1, 60)
         );
-
-        const signal2 = createTrafficLight(
-            chunk,
-            10.5,
-            -55
-        );
-
-        chunk.userData.signals = [
-            signal1,
-            signal2
-        ];
-    } else {
-        chunk.userData.signals = [];
     }
 
-    // لوحات اتجاهات
+    const destinations = {
+        urban: "القاهرة",
+        farm: "المنيا",
+        desert: "طريق الصعيد",
+        upper: "أسيوط"
+    };
+
     if (index % 2 === 0) {
         createRoadSign(
             chunk,
-            13,
+            1,
             48,
-            zone === "urban"
-                ? "القاهرة"
-                : zone === "farm"
-                ? "المنيا"
-                : zone === "desert"
-                ? "طريق الصعيد"
-                : "أسيوط",
-            random
+            destinations[zone]
         );
     }
 
     return chunk;
 }
 
-// =====================================================
-// إنشاء العالم
-// =====================================================
+// -----------------------------------------------------
+// إنشاء الطريق اللانهائي
+// -----------------------------------------------------
 
 export function createEgyptianCity(scene) {
     const world = new THREE.Group();
 
     world.name = "MASHWAR_ENDLESS_HIGHWAY";
-
     scene.add(world);
 
     const chunks = [];
+    const half = Math.floor(CHUNK_COUNT / 2);
 
-    const half = Math.floor(CONFIG.chunkCount / 2);
-
-    // إنشاء القطع الأولى
     for (let i = -half; i <= half; i++) {
         const chunk = createChunk(i);
 
-        chunk.position.z = i * CONFIG.chunkLength;
-
+        chunk.position.z = i * LENGTH;
         chunk.userData.chunkIndex = i;
 
         world.add(chunk);
-
         chunks.push(chunk);
     }
 
-    // تحديث إشارات المرور
-    function update(delta = 0.016, playerZ = 0) {
+    function update(delta = 0.016, playerZ = 0, night = false) {
+        // تحديث الإشارات
         for (const chunk of chunks) {
-            const signals = chunk.userData.signals || [];
+            for (const signal of chunk.userData.signals) {
+                signal.userData.timer += delta;
 
-            for (const signal of signals) {
-                signal.userData.phase += delta;
+                const phase = signal.userData.timer % 18;
 
-                const phase =
-                    signal.userData.phase % 18;
+                const active = phase < 8
+                    ? 0
+                    : phase < 10
+                    ? 1
+                    : 2;
 
-                const lights =
-                    signal.userData.lights;
+                signal.userData.bulbs.forEach((bulb, i) => {
+                    bulb.material.color.setHex(
+                        i === active
+                            ? [C.red, C.amber, C.green][i]
+                            : 0x252525
+                    );
+                });
 
-                lights[0].material = phase < 8
-                    ? mats.red
-                    : mats.black;
+                signal.userData.lights.forEach((light, i) => {
+                    light.intensity = night && i === active
+                        ? 1.5
+                        : 0;
+                });
+            }
 
-                lights[1].material = (
-                    phase >= 8 && phase < 10
-                )
-                    ? mats.orange
-                    : mats.black;
-
-                lights[2].material = phase >= 10
-                    ? mats.green
-                    : mats.black;
+            // إنارة ليلية فعلية
+            for (const light of chunk.userData.streetLights) {
+                light.intensity = night ? 1.4 : 0;
             }
         }
 
-        // إعادة تدوير قطع الطريق خلف اللاعب
-        for (const chunk of chunks) {
-            const endZ =
-                chunk.position.z + CONFIG.chunkLength / 2;
+        // تدوير القطع التي أصبحت خلف اللاعب
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
 
-            if (endZ < playerZ - CONFIG.chunkLength) {
+            const end = chunk.position.z + LENGTH / 2;
+
+            if (end < playerZ - LENGTH) {
                 const furthest = Math.max(
-                    ...chunks.map(c => c.position.z)
+                    ...chunks.map(item => item.position.z)
                 );
 
                 const nextIndex =
-                    chunk.userData.chunkIndex +
-                    CONFIG.chunkCount;
+                    chunk.userData.chunkIndex + CHUNK_COUNT;
 
                 const replacement = createChunk(nextIndex);
 
-                replacement.position.z =
-                    furthest + CONFIG.chunkLength;
-
-                replacement.userData.chunkIndex =
-                    nextIndex;
+                replacement.position.z = furthest + LENGTH;
+                replacement.userData.chunkIndex = nextIndex;
 
                 world.remove(chunk);
+                disposeChunk(chunk);
 
                 world.add(replacement);
-
-                const position = chunks.indexOf(chunk);
-
-                chunks[position] = replacement;
+                chunks[i] = replacement;
             }
         }
     }
 
     world.userData.update = update;
-
     world.userData.chunks = chunks;
-
-    world.userData.roadLength = CONFIG.chunkLength;
-
-    console.log("MASHWAR highway generated");
+    world.userData.chunkLength = LENGTH;
 
     return world;
 }
