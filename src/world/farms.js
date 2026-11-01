@@ -313,7 +313,7 @@ function createWheatPlants(parent, random, centers) {
 export function createFarms(parent, chunkIndex = 0) {
     const farms = new THREE.Group();
 
-    farms.name = \`MASHWAR_FARMS_\${chunkIndex}\`;
+    farms.name = `MASHWAR_FARMS_${chunkIndex}`;
 
     const random = seededRandom(chunkIndex + 918273);
 
