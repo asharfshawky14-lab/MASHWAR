@@ -200,9 +200,10 @@ export function createBuildingRow(parent, options = {}) {
             random
         );
 
-        // قيمة الدوران قابلة للتحديد بعد التحقق من اتجاه واجهة المجسم
-        building.rotation.y = options.facadeRotation ?? 0;
-
+        // توجيه واجهة المباني ناحية الطريق
+building.rotation.y = modelIndex === 2
+    ? 0
+    : side * (Math.PI / 2);
         building.position.x =
             side * (roadEdge + depth / 2 + 1.2);
 
