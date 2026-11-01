@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { buildRoad } from "./road.js";
 
 // =====================================================
 // MASHWAR - طريق مصري مفتوح
@@ -141,48 +142,6 @@ function addTextBoard(parent, x, y, z, width, height, label, color = "#17543d") 
     return board;
 }
 
-// الطريق والخطوط: عدد قليل من المجسمات، والخطوط مجمعة في InstancedMesh
-function buildRoad(chunk) {
-    addBox(chunk, 0, -0.55, 0, 150, 0.8, LENGTH, MATERIALS.sand);
-
-    for (const side of [-1, 1]) {
-        addBox(chunk, side * 5.35, 0, 0, 10.7, 0.16, LENGTH, MATERIALS.asphalt);
-        addBox(chunk, side * 11.35, 0, 0, 1.3, 0.12, LENGTH, MATERIALS.shoulder);
-        addBox(chunk, side * 10.72, 0.08, 0, 0.13, 0.025, LENGTH, MATERIALS.white);
-
-        const dashGeometry = boxGeometry(0.11, 0.026, 5);
-        const dashMaterial = MATERIALS.white;
-        const count = 15;
-        const dashes = new THREE.InstancedMesh(dashGeometry, dashMaterial, count);
-        const dummy = new THREE.Object3D();
-
-        for (let i = 0; i < count; i++) {
-            dummy.position.set(side * 1.8, 0.105, -LENGTH / 2 + 8 + i * 12);
-            dummy.updateMatrix();
-            dashes.setMatrixAt(i, dummy.matrix);
-        }
-        dashes.instanceMatrix.needsUpdate = true;
-        chunk.add(dashes);
-    }
-
-    addBox(chunk, 0, 0.12, 0, 1.45, 0.45, LENGTH, MATERIALS.concrete);
-    addBox(chunk, -0.72, 0.57, 0, 0.1, 0.45, LENGTH, MATERIALS.concrete);
-    addBox(chunk, 0.72, 0.57, 0, 0.1, 0.45, LENGTH, MATERIALS.concrete);
-
-    const reflectors = new THREE.InstancedMesh(
-        boxGeometry(0.2, 0.09, 0.42),
-        MATERIALS.yellow,
-        11
-    );
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < 11; i++) {
-        dummy.position.set(0, 0.59, -LENGTH / 2 + 10 + i * 16);
-        dummy.updateMatrix();
-        reflectors.setMatrixAt(i, dummy.matrix);
-    }
-    reflectors.instanceMatrix.needsUpdate = true;
-    chunk.add(reflectors);
-}
 
 // منزل مصري بسيط بتفاصيل قليلة وخامات طبيعية
 function createHouse(parent, side, z, random, village = false) {
@@ -288,15 +247,24 @@ function createDesert(parent, side, z, random) {
 
 // إنارة شكلية فقط، بدون PointLight
 function createStreetLight(parent, side, z) {
-    const x = side * 12.9;
+    const x = side * 20.5;
     const inward = -side;
+
     addCylinder(parent, x, 0, z, 0.09, 7.5, MATERIALS.metal, 8);
 
-    const arm = new THREE.Mesh(boxGeometry(1.8, 0.12, 0.12), MATERIALS.metal);
+    const arm = new THREE.Mesh(
+        boxGeometry(1.8, 0.12, 0.12),
+        MATERIALS.metal
+    );
+
     arm.position.set(x + inward * 0.75, 7.45, z);
     parent.add(arm);
 
-    const lamp = new THREE.Mesh(boxGeometry(0.72, 0.18, 0.38), MATERIALS.dark);
+    const lamp = new THREE.Mesh(
+        boxGeometry(0.72, 0.18, 0.38),
+        MATERIALS.dark
+    );
+
     lamp.position.set(x + inward * 1.45, 7.32, z);
     parent.add(lamp);
 
@@ -304,30 +272,33 @@ function createStreetLight(parent, side, z) {
         boxGeometry(0.52, 0.035, 0.24),
         MATERIALS.bulb
     );
+
     bulb.position.set(lamp.position.x, 7.21, z);
     parent.add(bulb);
 }
 
 function createGuardRail(parent, side) {
-    const x = side * 12.4;
+    const x = side * 19.1;
+
     addBox(parent, x, 0.72, 0, 0.12, 0.16, LENGTH, MATERIALS.metal);
 
-    // 6 دعامات فقط في القطعة بدل عشرات المجسمات
     const posts = new THREE.InstancedMesh(
         cylinderGeometry(0.05, 0.06, 0.78, 6),
         MATERIALS.metal,
         6
     );
+
     const dummy = new THREE.Object3D();
+
     for (let i = 0; i < 6; i++) {
         dummy.position.set(x, 0.39, -72 + i * 28);
         dummy.updateMatrix();
         posts.setMatrixAt(i, dummy.matrix);
     }
+
     posts.instanceMatrix.needsUpdate = true;
     parent.add(posts);
 }
-
 function createRoadSign(parent, side, z, label) {
     const x = side * 14.2;
     addCylinder(parent, x, 0, z, 0.075, 3.6, MATERIALS.metal, 8);
