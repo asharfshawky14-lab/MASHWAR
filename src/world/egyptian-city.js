@@ -81,6 +81,8 @@ function sphereGeometry(w = 12, h = 8) {
 const LENGTH = 180;
 const CHUNK_COUNT = 9;
 const ROAD_HALF = 10.8;
+// حالة تحميل مجسمات المباني
+let buildingModelsReady = false;
 
 function rng(seed) {
     let n = seed >>> 0;
