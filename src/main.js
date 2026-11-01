@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createEgyptianCity } from "./world/egyptian-city.js";
+import { loadMicrobus } from "./vehicles/microbus.js";
 
 // =====================================================
 // MASHWAR - نسخة محسنة للموبايل
@@ -65,6 +66,18 @@ scene.add(sun);
 // العالم
 const city = createEgyptianCity(scene);
 
+// الميكروباص
+let microbus = null;
+
+loadMicrobus(scene)
+    .then(vehicle => {
+        microbus = vehicle;
+        microbus.position.z = playerZ;
+        console.log("MASHWAR microbus loaded successfully");
+    })
+    .catch(error => {
+        console.error("Failed to load MASHWAR microbus:", error);
+    });
 // واجهة القيادة
 const panel = document.createElement("div");
 Object.assign(panel.style, {
@@ -198,6 +211,10 @@ function animate() {
     const delta = Math.min(clock.getDelta(), 0.05);
 
     if (!paused) playerZ += speed * delta;
+
+if (microbus) {
+    microbus.position.z = playerZ;
+}
 
     city.userData.update(delta, playerZ, night);
 
