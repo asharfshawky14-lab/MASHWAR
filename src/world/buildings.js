@@ -4,16 +4,15 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 // =====================================================
 // MASHWAR - BUILDING SYSTEM
-// تحميل وإدارة المجسمات الأصلية للمباني
+// تحميل وإدارة مجسمات المباني الأصلية
 // =====================================================
 
 const MODEL_PATHS = [
-    "../../assets/models/buildings/brownstone-row-house-1b84fd.glb",
-    "../../assets/models/buildings/cast-iron-loft-b04b5a.glb",
-    "../../assets/models/buildings/corner-tenement-92fb62.glb"
+    new URL("../../assets/models/buildings/brownstone-row-house-1b84fd.glb", import.meta.url).href,
+    new URL("../../assets/models/buildings/cast-iron-loft-b04b5a.glb", import.meta.url).href,
+    new URL("../../assets/models/buildings/corner-tenement-92fb62.glb", import.meta.url).href
 ];
 
-// ألوان واجهات المباني
 const BUILDING_COLORS = [
     0xd5c5a9,
     0xc8bba8,
@@ -25,21 +24,13 @@ const BUILDING_COLORS = [
     0xe2d9ca
 ];
 
-// اختلافات ارتفاع المباني
-const HEIGHT_VARIATIONS = [
-    0.88,
-    0.96,
-    1.00,
-    1.08,
-    1.16
-];
+const HEIGHT_VARIATIONS = [0.88, 0.96, 1.00, 1.08, 1.16];
 
 const loader = new GLTFLoader();
 
 let modelsPromise = null;
 let buildingTemplates = [];
 
-// مولد عشوائي ثابت
 function createRandom(seed = 1) {
     let value = seed >>> 0;
 
@@ -49,23 +40,16 @@ function createRandom(seed = 1) {
     };
 }
 
-// تحميل المجسمات مرة واحدة فقط
+// تحميل النماذج مرة واحدة
 export function loadBuildingModels() {
     if (modelsPromise) return modelsPromise;
 
     modelsPromise = Promise.all(
-        MODEL_PATHS.map(async (path) => {
-            const gltf = await loader.loadAsync(path);
-            const model = gltf.scene;
-
-            model.updateMatrixWorld(true);
-
-            return model;
-        })
+        MODEL_PATHS.map(path => loader.loadAsync(path))
     )
-    .then(models => {
-        buildingTemplates = models.map((model, index) => {
-            const template = model.clone(true);
+    .then(gltfs => {
+        buildingTemplates = gltfs.map((gltf, index) => {
+            const template = gltf.scene.clone(true);
 
             template.name = `MASHWAR_BUILDING_TEMPLATE_${index}`;
 
@@ -76,9 +60,7 @@ export function loadBuildingModels() {
                 object.receiveShadow = false;
 
                 if (Array.isArray(object.material)) {
-                    object.material = object.material.map(
-                        material => material.clone()
-                    );
+                    object.material = object.material.map(material => material.clone());
                 } else if (object.material) {
                     object.material = object.material.clone();
                 }
@@ -91,32 +73,20 @@ export function loadBuildingModels() {
     })
     .catch(error => {
         modelsPromise = null;
-
-        console.error(
-            "MASHWAR: Failed to load building models:",
-            error
-        );
-
+        console.error("MASHWAR: Building models loading failed:", error);
         throw error;
     });
 
     return modelsPromise;
 }
 
-// حساب أبعاد المجسم
 function getModelDimensions(model) {
     model.updateMatrixWorld(true);
 
     const bounds = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
+    const size = bounds.getSize(new THREE.Vector3());
 
-    bounds.getSize(size);
-
-    if (
-        size.x <= 0 ||
-        size.y <= 0 ||
-        size.z <= 0
-    ) {
+    if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
         throw new Error("Invalid building model dimensions");
     }
 
@@ -124,54 +94,43 @@ function getModelDimensions(model) {
         bounds,
         width: size.x,
         height: size.y,
-        depth: size.z
+        depth: size.z,
+        center: bounds.getCenter(new THREE.Vector3())
     };
 }
 
-// تجهيز نسخة مستقلة من المبنى
-function createBuildingInstance(
-    modelIndex,
-    options,
-    random
-) {
+function createBuildingInstance(modelIndex, options, random) {
     const template = buildingTemplates[modelIndex];
 
     if (!template) {
-        throw new Error(
-            `Building model ${modelIndex} is not loaded`
-        );
+        throw new Error(`Building model ${modelIndex} is not loaded`);
     }
 
     const building = template.clone(true);
-
     const dimensions = getModelDimensions(building);
 
-    const targetHeight =
-        (options.height || 12) *
+    const heightFactor =
         HEIGHT_VARIATIONS[
             Math.floor(random() * HEIGHT_VARIATIONS.length)
         ];
 
-    const targetWidth = options.width || 10;
-    const targetDepth = options.depth || 8;
+    const targetHeight = (options.height ?? 12) * heightFactor;
+    const targetWidth = options.width ?? 10;
+    const targetDepth = options.depth ?? 8;
 
-    // ضبط الحجم دون الاعتماد على أبعاد افتراضية للمجسم
     building.scale.set(
         targetWidth / dimensions.width,
         targetHeight / dimensions.height,
         targetDepth / dimensions.depth
     );
 
-    // جعل قاعدة المبنى عند مستوى الأرض
+    // توحيد نقطة ارتكاز المبنى عند مستوى الأرض
     building.position.set(
-        -dimensions.bounds.getCenter(new THREE.Vector3()).x *
-            building.scale.x,
+        -dimensions.center.x * building.scale.x,
         -dimensions.bounds.min.y * building.scale.y,
-        -dimensions.bounds.getCenter(new THREE.Vector3()).z *
-            building.scale.z
+        -dimensions.center.z * building.scale.z
     );
 
-    // تغيير لون خامات المبنى دون التأثير على القالب الأصلي
     const color = BUILDING_COLORS[
         Math.floor(random() * BUILDING_COLORS.length)
     ];
@@ -184,9 +143,7 @@ function createBuildingInstance(
             : [object.material];
 
         for (const material of materials) {
-            if (material.color) {
-                material.color.setHex(color);
-            }
+            if (material.color) material.color.setHex(color);
 
             material.roughness = 0.88;
             material.metalness = 0;
@@ -203,21 +160,19 @@ function createBuildingInstance(
     return building;
 }
 
-// إنشاء صف مبانٍ متجاورة على جانب الطريق
+// إنشاء صف مبانٍ
 export function createBuildingRow(parent, options = {}) {
     if (buildingTemplates.length !== MODEL_PATHS.length) {
-        throw new Error(
-            "Call loadBuildingModels() before creating buildings"
-        );
+        throw new Error("Building models are not loaded yet");
     }
 
     const side = options.side === -1 ? -1 : 1;
     const startZ = options.startZ ?? -70;
     const count = options.count ?? 5;
+    const roadEdge = options.roadEdge ?? 17.7;
+    const spacing = options.spacing ?? 0.45;
 
-    const random = createRandom(
-        options.seed ?? 2026
-    );
+    const random = createRandom(options.seed ?? 2026);
 
     const row = new THREE.Group();
 
@@ -225,7 +180,6 @@ export function createBuildingRow(parent, options = {}) {
         ? "MASHWAR_BUILDINGS_LEFT"
         : "MASHWAR_BUILDINGS_RIGHT";
 
-    const roadEdge = 17.7;
     let currentZ = startZ;
 
     for (let i = 0; i < count; i++) {
@@ -246,11 +200,8 @@ export function createBuildingRow(parent, options = {}) {
             random
         );
 
-        // واجهة المجسم الأصلية مفترضة باتجاه +Z.
-        // تدوير المبنى يجعل واجهته ناحية الطريق.
-        building.rotation.y = side < 0
-            ? Math.PI / 2
-            : -Math.PI / 2;
+        // قيمة الدوران قابلة للتحديد بعد التحقق من اتجاه واجهة المجسم
+        building.rotation.y = options.facadeRotation ?? 0;
 
         building.position.x =
             side * (roadEdge + depth / 2 + 1.2);
@@ -259,8 +210,7 @@ export function createBuildingRow(parent, options = {}) {
 
         row.add(building);
 
-        // عرض الواجهة بعد التدوير يساوي العرض المحلي
-        currentZ += width + 0.35;
+        currentZ += width + spacing;
     }
 
     parent.add(row);
@@ -268,7 +218,7 @@ export function createBuildingRow(parent, options = {}) {
     return row;
 }
 
-// حذف صف المباني وتنظيف مواده المستقلة
+// تنظيف الصف عند إزالة قطعة العالم
 export function disposeBuildingRow(row) {
     if (!row) return;
 
