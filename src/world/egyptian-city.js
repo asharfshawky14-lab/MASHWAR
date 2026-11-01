@@ -382,9 +382,12 @@ function createChunk(index) {
     } else if (zone === "desert") {
         createDesert(chunk, -1, 0, random);
         createDesert(chunk, 1, 0, random);
-    } else {
-        createFarm(chunk, -1, -28, random);
-        if (index % 2 === 0) createHouse(chunk, 1, 38, random, true);
+        } else {
+        createFarms(chunk, index);
+
+        if (index % 2 === 0) {
+            createHouse(chunk, 1, 38, random, true);
+        }
     }
 
     const destinations = {
