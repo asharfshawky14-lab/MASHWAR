@@ -6,6 +6,7 @@ import {
     removeCairoBuildings
 } from "./cities/cairo.js";
 import { loadBuildingModels } from "./buildings.js";
+import { createFarms } from "./farms.js";
 
 // =====================================================
 // MASHWAR - طريق مصري مفتوح
@@ -372,9 +373,12 @@ function createChunk(index) {
             if (index % 2 === 0) createHouse(chunk, -1, -35, random, false);
             if (index % 3 === 0) createShop(chunk, 1, 42, random);
         }
-    } else if (zone === "farm") {
-        createFarm(chunk, index % 2 === 0 ? -1 : 1, index % 2 === 0 ? 18 : -18, random);
-        if (index % 3 === 0) createHouse(chunk, 1, 48, random, true);
+        } else if (zone === "farm") {
+        createFarms(chunk, index);
+
+        if (index % 3 === 0) {
+            createHouse(chunk, 1, 48, random, true);
+        }
     } else if (zone === "desert") {
         createDesert(chunk, -1, 0, random);
         createDesert(chunk, 1, 0, random);
