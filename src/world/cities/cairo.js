@@ -100,7 +100,7 @@ export function removeCairoBuildings(chunk) {
     if (buildings) {
         for (const row of buildings) {
             if (row) {
-                row.removeFromParent();
+                disposeBuildingRow(row);
             }
         }
     }
