@@ -37,7 +37,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     650
 );
-camera.position.set(0, 9.5, -18);
+camera.position.set(8.6, 9.5, -18);
 
 // محرك العرض: بدون Anti-aliasing لتخفيف الحمل على الهاتف
 const renderer = new THREE.WebGLRenderer({
@@ -218,8 +218,8 @@ if (microbus) {
 
     city.userData.update(delta, playerZ, night);
 
-    camera.position.set(0, 9.5, playerZ - 18);
-    camera.lookAt(0, 3.1, playerZ + 25);
+    camera.position.set(8.6, 9.5, playerZ - 18);
+camera.lookAt(8.6, 3.1, playerZ + 25);
 
     updateInformation();
     renderer.render(scene, camera);
