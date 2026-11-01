@@ -417,6 +417,23 @@ export function createEgyptianCity(scene) {
         chunks.push(chunk);
     }
 
+        // تحميل مجسمات المباني مرة واحدة بعد إنشاء القطع الأولى
+    loadBuildingModels()
+        .then(() => {
+            buildingModelsReady = true;
+
+            for (const chunk of chunks) {
+                const index = chunk.userData.chunkIndex;
+
+                if (isCairoChunk(index)) {
+                    createCairoBuildings(chunk, index);
+                }
+            }
+        })
+        .catch((error) => {
+            console.error("MASHWAR: Failed to load Cairo building models:", error);
+        });
+
     let furthestZ = half * LENGTH;
 
     function update(_delta = 0.016, playerZ = 0, _night = false) {
