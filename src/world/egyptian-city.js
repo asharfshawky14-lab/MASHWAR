@@ -367,9 +367,11 @@ function createChunk(index) {
     }
 
     // البيئة متباعدة: معلم أو اثنان في القطعة، ومساحات مفتوحة واسعة
-    if (zone === "urban") {
-        if (index % 2 === 0) createHouse(chunk, -1, -35, random, false);
-        if (index % 3 === 0) createShop(chunk, 1, 42, random);
+        if (zone === "urban") {
+        if (!isCairoChunk(index)) {
+            if (index % 2 === 0) createHouse(chunk, -1, -35, random, false);
+            if (index % 3 === 0) createShop(chunk, 1, 42, random);
+        }
     } else if (zone === "farm") {
         createFarm(chunk, index % 2 === 0 ? -1 : 1, index % 2 === 0 ? 18 : -18, random);
         if (index % 3 === 0) createHouse(chunk, 1, 48, random, true);
