@@ -203,7 +203,7 @@ export function createBuildingRow(parent, options = {}) {
         // توجيه واجهة المباني ناحية الطريق
 building.rotation.y = modelIndex === 2
     ? 0
-    : side * (Math.PI / 2);
+    : -side * (Math.PI / 2);
         building.position.x =
             side * (roadEdge + depth / 2 + 1.2);
 
