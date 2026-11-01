@@ -15,7 +15,7 @@ const CAIRO_CONFIG = {
 
     roadEdge: 17.7,
 
-    buildingCount: 8,
+    buildingCount: 20,
     startZ: -82,
 
     spacing: 1.8,
