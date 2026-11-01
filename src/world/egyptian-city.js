@@ -395,9 +395,14 @@ function createChunk(index) {
     }
 
     // الحواجز في أجزاء محددة فقط، حتى لا يبدو الطريق محاطًا دائمًا
-    if (index % 3 !== 1) {
+        if (index % 3 !== 1) {
         createGuardRail(chunk, -1);
         createGuardRail(chunk, 1);
+    }
+
+    // إضافة مباني القاهرة للقطع الجديدة بعد تحميل المجسمات
+    if (buildingModelsReady && isCairoChunk(index)) {
+        createCairoBuildings(chunk, index);
     }
 
     return chunk;
