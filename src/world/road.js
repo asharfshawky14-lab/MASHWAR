@@ -212,7 +212,7 @@ function buildLaneLines(parent) {
                     ROAD.dashLength / 2 +
                     i * (ROAD.dashLength + ROAD.dashGap);
 
-                dummy.position.set(x, 0.145, z);
+                dummy.position.set(x, 0.27, z);
                 dummy.updateMatrix();
 
                 dashes.setMatrixAt(i, dummy.matrix);
@@ -244,7 +244,7 @@ function buildRoadEdges(parent) {
             geometries.solidLine,
             materials.line,
             side * innerEdge,
-            0.145,
+            0.27,
             0
         );
 
@@ -253,7 +253,7 @@ function buildRoadEdges(parent) {
             geometries.solidLine,
             materials.line,
             side * outerEdge,
-            0.145,
+            0.27,
             0
         );
     }
