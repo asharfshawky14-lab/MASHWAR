@@ -1,5 +1,11 @@
 import * as THREE from "three";
 import { buildRoad } from "./road.js";
+import {
+    isCairoChunk,
+    createCairoBuildings,
+    removeCairoBuildings
+} from "./cities/cairo.js";
+import { loadBuildingModels } from "./buildings.js";
 
 // =====================================================
 // MASHWAR - طريق مصري مفتوح
