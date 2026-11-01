@@ -447,6 +447,7 @@ export function createEgyptianCity(scene) {
                 const nextIndex = chunk.userData.chunkIndex + CHUNK_COUNT;
                 const nextZ = furthestZ + LENGTH;
 
+                                removeCairoBuildings(chunk);
                 world.remove(chunk);
                 disposeChunk(chunk);
 
