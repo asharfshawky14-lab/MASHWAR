@@ -300,12 +300,22 @@ function createGuardRail(parent, side) {
     parent.add(posts);
 }
 function createRoadSign(parent, side, z, label) {
-    const x = side * 14.2;
+    const x = side * 22.5;
+
     addCylinder(parent, x, 0, z, 0.075, 3.6, MATERIALS.metal, 8);
-    const board = addTextBoard(parent, x - side * 0.08, 3.8, z, 4.5, 1.35, label);
+
+    const board = addTextBoard(
+        parent,
+        x - side * 0.08,
+        3.8,
+        z,
+        4.5,
+        1.35,
+        label
+    );
+
     board.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
 }
-
 // تنظيف القطعة فقط؛ الخامات والهندسات المشتركة تظل محفوظة
 function disposeChunk(chunk) {
     const textures = new Set();
