@@ -405,11 +405,12 @@ if (zone === "urban") {
 }
 
     const destinations = {
-        urban: "القاهرة",
-        farm: "المنيا",
-        desert: "طريق الصعيد",
-        upper: "أسيوط"
-    };
+    urban: "القاهرة",
+    farm: "المنيا",
+    desert: "طريق الصعيد",
+    upper: "أسيوط",
+    "beni-suef": "بني سويف"
+};
 
     if (index % 3 === 0) {
         createRoadSign(chunk, 1, 55, destinations[zone]);
