@@ -362,37 +362,47 @@ function createChunk(index) {
     buildRoad(chunk);
 
     const phase = ((index % 16) + 16) % 16;
-    const zone = phase < 4 ? "urban" : phase < 8 ? "farm" : phase < 12 ? "desert" : "upper";
-    chunk.userData.zone = zone;
 
-    // أعمدة إنارة قليلة ومتباعدة، عمودان فقط لكل قطعة
+const zone = index >= 171
+    ? "beni-suef"
+    : phase < 4
+        ? "urban"
+        : phase < 8
+            ? "farm"
+            : phase < 12
+                ? "desert"
+                : "upper";
+
+chunk.userData.zone = zone;
+
+// أعمدة إنارة قليلة ومتباعدة، عمودان فقط لكل قطعة
+if (index % 2 === 0) {
+    createStreetLight(chunk, -1, -42);
+    createStreetLight(chunk, 1, 42);
+}
+
+// توزيع البيئة حسب المنطقة
+if (zone === "urban") {
+    if (!isCairoChunk(index)) {
+        if (index % 2 === 0) createHouse(chunk, -1, -35, random, false);
+        if (index % 3 === 0) createShop(chunk, 1, 42, random);
+    }
+} else if (zone === "farm") {
+    createFarms(chunk, index);
+
+    if (index % 3 === 0) {
+        createHouse(chunk, 1, 48, random, true);
+    }
+} else if (zone === "desert") {
+    createDesert(chunk, -1, 0, random);
+    createDesert(chunk, 1, 0, random);
+} else if (zone === "upper") {
+    createFarms(chunk, index);
+
     if (index % 2 === 0) {
-        createStreetLight(chunk, -1, -42);
-        createStreetLight(chunk, 1, 42);
+        createHouse(chunk, 1, 38, random, true);
     }
-
-    // البيئة متباعدة: معلم أو اثنان في القطعة، ومساحات مفتوحة واسعة
-        if (zone === "urban") {
-        if (!isCairoChunk(index)) {
-            if (index % 2 === 0) createHouse(chunk, -1, -35, random, false);
-            if (index % 3 === 0) createShop(chunk, 1, 42, random);
-        }
-        } else if (zone === "farm") {
-        createFarms(chunk, index);
-
-        if (index % 3 === 0) {
-            createHouse(chunk, 1, 48, random, true);
-        }
-    } else if (zone === "desert") {
-        createDesert(chunk, -1, 0, random);
-        createDesert(chunk, 1, 0, random);
-        } else {
-        createFarms(chunk, index);
-
-        if (index % 2 === 0) {
-            createHouse(chunk, 1, 38, random, true);
-        }
-    }
+}
 
     const destinations = {
         urban: "القاهرة",
