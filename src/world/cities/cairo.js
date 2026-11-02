@@ -25,12 +25,12 @@ const CAIRO_CONFIG = {
 };
 
 // تحديد قطع الطريق التابعة للقاهرة
+// القاهرة تبدأ من القطعة 0 وتنتهي عند القطعة 3 فقط
 export function isCairoChunk(index) {
-    const phase = ((index % 16) + 16) % 16;
-
     return (
-        phase >= CAIRO_CONFIG.firstPhase &&
-        phase <= CAIRO_CONFIG.lastPhase
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index <= 3
     );
 }
 
