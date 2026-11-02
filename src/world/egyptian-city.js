@@ -411,10 +411,15 @@ function createChunk(index) {
         createGuardRail(chunk, 1);
     }
 
-    // إضافة مباني القاهرة للقطع الجديدة بعد تحميل المجسمات
-    if (buildingModelsReady && isCairoChunk(index)) {
-        createCairoBuildings(chunk, index);
-    }
+    // إضافة مباني القاهرة للقطع التابعة لها
+if (buildingModelsReady && isCairoChunk(index)) {
+    createCairoBuildings(chunk, index);
+}
+
+// إضافة مباني بني سويف بعد نهاية القاهرة بمسافة 30 كم تقريبًا
+if (index >= 171) {
+    createBeniSuefBuildings(chunk, index);
+}
 
     return chunk;
 }
