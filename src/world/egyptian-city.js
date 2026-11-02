@@ -479,8 +479,9 @@ export function createEgyptianCity(scene) {
                 const nextZ = furthestZ + LENGTH;
 
                                 removeCairoBuildings(chunk);
-                world.remove(chunk);
-                disposeChunk(chunk);
+removeBeniSuefBuildings(chunk);
+world.remove(chunk);
+disposeChunk(chunk);
 
                 const replacement = createChunk(nextIndex);
                 replacement.position.z = nextZ;
