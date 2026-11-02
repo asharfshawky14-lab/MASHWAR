@@ -7,6 +7,10 @@ import {
 } from "./cities/cairo.js";
 import { loadBuildingModels } from "./buildings.js";
 import { createFarms } from "./farms.js";
+import {
+    createBeniSuefBuildings,
+    removeBeniSuefBuildings
+} from "./cities/beni-suef.js";
 
 // =====================================================
 // MASHWAR - طريق مصري مفتوح
