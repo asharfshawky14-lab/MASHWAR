@@ -70,6 +70,7 @@ const traffic = createTraffic(scene);
 // حالة القيادة
 let playerZ = 0;
 let speed = 0;
+let distanceTravelled = 0;
 
 const MAX_FORWARD_SPEED = 45;
 const MAX_REVERSE_SPEED = 8;
@@ -122,6 +123,7 @@ panel.innerHTML = `
     <div style="font-size:18px;font-weight:800;letter-spacing:.5px">MASHWAR</div>
     <div id="road-zone" style="margin-top:6px">ضواحي القاهرة</div>
     <div id="road-speed" style="margin-top:5px">السرعة: 0 كم/س</div>
+<div id="road-distance" style="margin-top:5px">المسافة: 0.00 كم</div>
 `;
 
 document.body.appendChild(panel);
