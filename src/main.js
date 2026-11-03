@@ -265,6 +265,7 @@ function animate() {
 
     // حركة الميكروباص للأمام أو الخلف
     playerZ += speed * delta;
+distanceTravelled += Math.abs(speed) * delta;
 
     if (microbus) {
         microbus.position.z = playerZ;
