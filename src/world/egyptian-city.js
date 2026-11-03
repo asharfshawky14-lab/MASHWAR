@@ -428,7 +428,7 @@ if (buildingModelsReady && isCairoChunk(index)) {
 }
 
 // إضافة مباني بني سويف بعد نهاية القاهرة بمسافة 30 كم تقريبًا
-if (index >= 28) {
+if (index >= 28 && index < 39) {
     createBeniSuefBuildings(chunk, index);
 }
 
