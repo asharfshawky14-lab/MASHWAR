@@ -363,7 +363,7 @@ function createChunk(index) {
 
     const phase = ((index % 16) + 16) % 16;
 
-const zone = index >= 28
+const zone = index >= 28 && index < 39
     ? "beni-suef"
     : phase < 4
         ? "urban"
