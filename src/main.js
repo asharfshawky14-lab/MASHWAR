@@ -216,6 +216,8 @@ function updateInformation(force = false) {
     speedLabel.textContent =
         `السرعة: ${Math.round(Math.abs(speed) * 3.6)} كم/س` +
         (speed < 0 ? " - رجوع للخلف" : "");
+    distanceLabel.textContent =
+    `المسافة: ${(distanceTravelled / 1000).toFixed(2)} كم`;
 }
 
 // حلقة التشغيل
