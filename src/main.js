@@ -192,6 +192,7 @@ createControls({
 // تحديث معلومات الطريق والسرعة
 const zoneLabel = document.getElementById("road-zone");
 const speedLabel = document.getElementById("road-speed");
+const distanceLabel = document.getElementById("road-distance");
 
 function updateInformation(force = false) {
     const now = performance.now();
